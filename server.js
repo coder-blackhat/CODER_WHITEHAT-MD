@@ -121,23 +121,39 @@ async function connectToWhatsApp() {
 
                 switch (command) {
                     case 'pair':
-                        if (isGroup) return reply('❌ Use this in private chat!')
-                        if (!q) return reply(`*Usage:* ${global.prefix}pair 263771234567\nSend your number with country code to get a pairing code.`)
-                        try {
-                            react('⏳')
-                            const { state: pairState } = await useMultiFileAuthState(`./pair_${q}`)
-                            const pairSock = makeWASocket({ auth: pairState, printQRInTerminal: false })
-                            if (!pairSock.authState.creds.registered) {
-                                const code = await pairSock.requestPairingCode(q)
-                                reply(`*PAIRING CODE FOR ${q}*\n\nCode: *${code}*\n\n1. WhatsApp > Linked Devices\n2. Link with phone number\n3. Enter this code\n\n_Expires in 60s_`)
-                                setTimeout(() => pairSock.end(), 60000)
-                            } else reply('✅ Number already registered!')
-                            react('✅')
-                        } catch (e) { reply('❌ Error. Check number format.') }
-                        break
+    if (isGroup) return reply('❌ Use this in private chat!')
+    if (!q) return reply(`*Usage:* ${global.prefix}pair 263771234567\n\nSend your number with country code to get a pairing code.`)
+    try {
+        react('⏳')
+        const cleanNum = q.replace(/[^0-9]/g, '')
+        if (cleanNum.length < 11) return reply('❌ Invalid number. Use full country code: 263771234567')
+        
+        const { state: pairState, saveCreds: savePairCreds } = await useMultiFileAuthState(`./pair_${cleanNum}`)
+        const pairSock = makeWASocket({ 
+            auth: pairState, 
+            printQRInTerminal: false,
+            logger: pino({ level: 'silent' }),
+            browser: ['Ubuntu', 'Chrome', '20.0.04']
+        })
+        
+        pairSock.ev.on('creds.update', savePairCreds)
+        
+        await new Promise(resolve => setTimeout(resolve, 2000)) // wait for socket ready
+        
+        if (!pairSock.authState.creds.registered) {
+            const code = await pairSock.requestPairingCode(cleanNum)
+            reply(`*PAIRING CODE FOR ${cleanNum}*\n\nCode: *${code}*\n\n1. WhatsApp > Linked Devices\n2. Link with phone number\n3. Enter this code\n\n_Expires in 60s_`)
+            setTimeout(() => pairSock.end(), 60000)
+        } else reply('✅ Number already registered!')
+        react('✅')
+    } catch (e) { 
+        console.log('Pair error:', e)
+        reply('❌ Error. Number may be banned or Baileys version issue.') 
+    }
+    break
 
-                    case 'menu': case 'help': case 'list':
-                        const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
+case 'menu': case 'help': case 'list':
+const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
 ┃ 📱 Version: ${global.version}
 ┃ 👑 Owner: ${global.ownername}
 ┃ ⏰ Runtime: ${runtime()}
@@ -409,16 +425,24 @@ async function connectToWhatsApp() {
                         reply(hasWarns? warnList : 'No warnings')
                         break
                    case 'play': case 'song':
-                        if (!q) return reply('Song name?')
-                        react('🎵')
-                        try {
-                            const search = await axios.get(`${global.xwolf}/api/download/youtube/search?q=${encodeURIComponent(q)}`)
-                            const video = search.data.result[0]
-                            const dl = await axios.get(`${global.xwolf}/api/download/youtube/mp3?url=${video.url}`)
-                            await sock.sendMessage(from, { audio: { url: dl.data.result.download }, mimetype: 'audio/mpeg', contextInfo: { externalAdReply: { title: video.title, thumbnailUrl: video.thumbnail }}}, { quoted: msg })
-                            react('✅')
-                        } catch { reply('❌ Download failed') }
-                        break
+    if (!q) return reply('Song name?')
+    react('🎵')
+    try {
+        const search = await axios.get(`https://api.dreaded.site/api/ytdl/search?query=${encodeURIComponent(q)}`)
+        if (!search.data.result?.length) return reply('❌ Song not found')
+        const video = search.data.result[0]
+        const dl = await axios.get(`https://api.dreaded.site/api/ytdl/audio?url=${video.url}`)
+        await sock.sendMessage(from, { 
+            audio: { url: dl.data.result.download }, 
+            mimetype: 'audio/mpeg', 
+            contextInfo: { externalAdReply: { title: video.title, thumbnailUrl: video.thumbnail }}
+        }, { quoted: msg })
+        react('✅')
+    } catch (e) { 
+        console.log('Play error:', e.message)
+        reply('❌ Download failed. API might be down.') 
+    }
+    break
                     case 'ytmp3': case 'yta':
                         if (!q) return reply('YouTube URL?')
                         react('⏳')
