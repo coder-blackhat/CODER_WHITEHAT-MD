@@ -3,16 +3,17 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLat
 const pino = require('pino')
 const fs = require('fs')
 const express = require('express')
-const { execSync } = require('child_process')
+const AdmZip = require('adm-zip')
 
 const app = express()
 const port = process.env.PORT || 8080
 
 async function connectToWhatsApp() {
     try {
-        // Unzip your Termux session on Railway startup
+        // Unzip using adm-zip instead of shell command
         if (fs.existsSync('auth_info.zip') &&!fs.existsSync('auth_info')) {
-            execSync('unzip -o auth_info.zip')
+            const zip = new AdmZip('auth_info.zip')
+            zip.extractAllTo('.', true)
             console.log('✅ Unzipped Termux session')
         }
 
@@ -30,9 +31,10 @@ async function connectToWhatsApp() {
             const { connection, lastDisconnect } = update
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode
+                console.log('Connection closed:', statusCode)
                 if (statusCode!== DisconnectReason.loggedOut) {
                     console.log('Reconnecting...')
-                    connectToWhatsApp()
+                    setTimeout(connectToWhatsApp, 3000)
                 }
             } else if (connection === 'open') {
                 console.log('✅ Bot connected to WhatsApp!')
@@ -41,13 +43,12 @@ async function connectToWhatsApp() {
 
         sock.ev.on('creds.update', saveCreds)
 
-        // Auto-reply example - replace with your commands
         sock.ev.on('messages.upsert', async (m) => {
             const msg = m.messages[0]
             if (!msg.key.fromMe && msg.message) {
                 const text = msg.message.conversation || msg.message.extendedTextMessage?.text
                 if (text === '.ping') {
-                    await sock.sendMessage(msg.key.remoteJid, { text: 'Pong! Bot is online 24/7 ✅' })
+                    await sock.sendMessage(msg.key.remoteJid, { text: 'Pong! Bot online 24/7 ✅' })
                 }
             }
         })
@@ -65,4 +66,4 @@ app.get('/', (req, res) => {
     res.send(connected? '✅ Bot is connected!' : '❌ Bot not connected')
 })
 
-app.listen(port, () => console.log(`Server on port ${port}`)) 
+app.listen(port, () => console.log(`Server running on port ${port}`)) 
