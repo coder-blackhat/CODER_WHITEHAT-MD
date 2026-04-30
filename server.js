@@ -1,6 +1,6 @@
 global.crypto = require('crypto')
 const express = require('express')
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys')
 const qrcode = require('qrcode')
 const pino = require('pino')
 const fs = require('fs')
@@ -16,14 +16,17 @@ async function connectToWhatsApp() {
             fs.rmSync('auth_info', { recursive: true, force: true })
         }
 
+        const { version } = await fetchLatestBaileysVersion()
+        console.log(`Using WA version: ${version}`)
+        
         const { state, saveCreds } = await useMultiFileAuthState('auth_info')
         
         const sock = makeWASocket({
             logger: pino({ level: 'silent' }),
             auth: state,
             printQRInTerminal: false,
-            browser: ['Ubuntu', 'Chrome', '110.0.0'],
-            version: [2, 2413, 51]
+            browser: ['CODER_WHITEHAT-MD', 'Chrome', '110.0.0'],
+            version
         })
 
         sock.ev.on('connection.update', async (update) => {
@@ -41,7 +44,7 @@ async function connectToWhatsApp() {
                 const errorMsg = lastDisconnect?.error?.message
                 console.log('Connection closed. Status:', statusCode, 'Error:', errorMsg)
                 
-                if (statusCode === DisconnectReason.loggedOut || !statusCode) {
+                if (statusCode === DisconnectReason.loggedOut || statusCode === 405) {
                     console.log('Deleting auth and restarting...')
                     fs.rmSync('auth_info', { recursive: true, force: true })
                 }
