@@ -122,7 +122,7 @@ async function connectToWhatsApp() {
                 switch (command) {
                     case 'pair':
                         if (isGroup) return reply('❌ Use this in private chat!')
-                        if (!q) return reply(`*Usage:* ${global.prefix}pair 263771234567\n\nSend your number with country code to get a pairing code.`)
+                        if (!q) return reply(`*Usage:* ${global.prefix}pair 263771234567\nSend your number with country code to get a pairing code.`)
                         try {
                             react('⏳')
                             const { state: pairState } = await useMultiFileAuthState(`./pair_${q}`)
@@ -148,63 +148,50 @@ async function connectToWhatsApp() {
 ╰━━━━━━━━━━━━━━━⬣
 
 ╭━━〔 *ᴄᴏᴍᴀɴᴅs* 〕━━⬣
-┃
 ┃ ⫷ 𝐌𝐄𝐃𝐈𝐀 ⫸
 ┃ +${global.prefix}sticker +${global.prefix}stickervid +${global.prefix}toimage
 ┃ +${global.prefix}tovideo +${global.prefix}toaudio +${global.prefix}togif
 ┃ +${global.prefix}removebg +${global.prefix}take <pack>
-┃
 ┃ ⫷ 𝐎𝐖𝐍𝐄𝐑 ⫸
 ┃ +${global.prefix}owner +${global.prefix}ping +${global.prefix}runtime
 ┃ +${global.prefix}public +${global.prefix}private +${global.prefix}autoread
 ┃ +${global.prefix}block +${global.prefix}unblock +${global.prefix}broadcast
 ┃ +${global.prefix}join <link>
-┃
 ┃ ⫷ 𝐆𝐑𝐎𝐔𝐏 ⫸
 ┃ +${global.prefix}kick +${global.prefix}add +${global.prefix}promote +${global.prefix}demote
 ┃ +${global.prefix}tagall +${global.prefix}hidetag +${global.prefix}group open/close
 ┃ +${global.prefix}link +${global.prefix}revoke +${global.prefix}setgcname
 ┃ +${global.prefix}setgcdesc +${global.prefix}setgcpp
-┃
 ┃ ⫷ 𝐏𝐑𝐎𝐓𝐄𝐂𝐓𝐈𝐎𝐍 ⫸
 ┃ +${global.prefix}antilink on/off +${global.prefix}antibot on/off
 ┃ +${global.prefix}warn +${global.prefix}unwarn +${global.prefix}listwarn
-┃
 ┃ ⫷ 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃 ⫸
 ┃ +${global.prefix}play +${global.prefix}ytmp3 +${global.prefix}ytmp4
 ┃ +${global.prefix}tiktok +${global.prefix}ig +${global.prefix}fb
 ┃ +${global.prefix}lyrics +${global.prefix}spotify
-┃
 ┃ ⫷ 𝐀𝐈 𝐈𝐌𝐀𝐆𝐄 ⫸
 ┃ +${global.prefix}imagine <prompt> +${global.prefix}lorem <w> <h>
 ┃ +${global.prefix}bingimg
-┃
-┃ ⫷ 𝐀𝐈 𝐓𝐎𝐎𝐋𝐒 ⫸
+┃ ⫷ 𝐀𝐈 𝐓𝐎𝐋𝐒 ⫸
 ┃ +${global.prefix}summarize +${global.prefix}codeai +${global.prefix}scanner
 ┃ +${global.prefix}humanizer +${global.prefix}removebg +${global.prefix}shazam
-┃
 ┃ ⫷ 𝐀𝐈 𝐂𝐇𝐀𝐓 ⫸
 ┃ +${global.prefix}gpt +${global.prefix}claude +${global.prefix}gemini
 ┃ +${global.prefix}deepseek +${global.prefix}groq +${global.prefix}openchat
 ┃ +${global.prefix}wormgpt
-┃
-┃ ⫷ 𝐀𝐔𝐃𝐈𝐎 𝐄𝐅𝐅𝐄𝐂𝐓𝐒 ⫸
+┃ ⫷ 𝐀𝐔𝐃𝐈𝐎 𝐄𝐅𝐄𝐂𝐓𝐒 ⫸
 ┃ +${global.prefix}bass +${global.prefix}bassboost +${global.prefix}deep
 ┃ +${global.prefix}robot +${global.prefix}telephone +${global.prefix}underwater
 ┃ +${global.prefix}megaphone +${global.prefix}nightcore
-┃
 ┃ ⫷ 𝐄𝐂𝐎𝐍𝐎𝐌𝐘 ⫸
 ┃ +${global.prefix}bal +${global.prefix}daily +${global.prefix}work
 ┃ +${global.prefix}give +${global.prefix}gamble +${global.prefix}shop
-┃
 ┃ ⫷ 𝐒𝐄𝐀𝐑𝐂𝐇 ⫸
 ┃ +${global.prefix}google +${global.prefix}wiki +${global.prefix}npm
 ┃ +${global.prefix}weather +${global.prefix}movie +${global.prefix}github
-┃
 ┃ ⫷ 𝐔𝐓𝐈𝐋𝐈𝐓𝐘 ⫸
 ┃ +${global.prefix}ssweb +${global.prefix}calc +${global.prefix}translate
 ┃ +${global.prefix}tts +${global.prefix}pair
-┃
 ╰━━━━━━━━━━━━━━━⬣
 > © ᴘᴏᴡᴇʀᴇᴅ ʙʏ CODER_WHITEHAT`
                         reply(menu)
@@ -243,19 +230,19 @@ async function connectToWhatsApp() {
                         const type = getContentType(quoted)
                         if (!type.includes('image') &&!type.includes('video')) return reply('Reply to media!')
                         react('⏳')
-                        const stream = await downloadContentFromMessage(quoted[type], type.includes('image')? 'image' : 'video')
-                        let buffer = Buffer.from([])
-                        for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk])
-                        await sock.sendMessage(from, { sticker: buffer }, { quoted: msg })
+                        const mediaStream = await downloadContentFromMessage(quoted[type], type.includes('image')? 'image' : 'video')
+                        let mediaBuffer = Buffer.from([])
+                        for await (const chunk of mediaStream) mediaBuffer = Buffer.concat([mediaBuffer, chunk])
+                        await sock.sendMessage(from, { sticker: mediaBuffer }, { quoted: msg })
                         react('✅')
                         break
                     case 'toimage': case 'toimg':
                         if (!quoted?.stickerMessage) return reply('Reply to sticker!')
                         react('⏳')
-                        const stm = await downloadContentFromMessage(quoted.stickerMessage, 'sticker')
-                        let sbuffer = Buffer.from([])
-                        for await (const chunk of stm) sbuffer = Buffer.concat([sbuffer, chunk])
-                        await sock.sendMessage(from, { image: sbuffer }, { quoted: msg })
+                        const stickerStream = await downloadContentFromMessage(quoted.stickerMessage, 'sticker')
+                        let stickerBuffer = Buffer.from([])
+                        for await (const chunk of stickerStream) stickerBuffer = Buffer.concat([stickerBuffer, chunk])
+                        await sock.sendMessage(from, { image: stickerBuffer }, { quoted: msg })
                         react('✅')
                         break
                     case 'tovideo': case 'tomp4':
@@ -276,10 +263,10 @@ async function connectToWhatsApp() {
                         if (!quoted?.videoMessage) return reply('Reply to video!')
                         react('⏳')
                         try {
-                            const stream = await downloadContentFromMessage(quoted.videoMessage, 'video')
-                            let buf = Buffer.from([])
-                            for await (const chunk of stream) buf = Buffer.concat([buf, chunk])
-                            await sock.sendMessage(from, { audio: buf, mimetype: 'audio/mpeg' }, { quoted: msg })
+                            const vidStream = await downloadContentFromMessage(quoted.videoMessage, 'video')
+                            let vidBuf = Buffer.from([])
+                            for await (const chunk of vidStream) vidBuf = Buffer.concat([vidBuf, chunk])
+                            await sock.sendMessage(from, { audio: vidBuf, mimetype: 'audio/mpeg' }, { quoted: msg })
                             react('✅')
                         } catch { reply('❌ Failed') }
                         break
@@ -287,12 +274,12 @@ async function connectToWhatsApp() {
                         if (!quoted?.videoMessage &&!quoted?.stickerMessage) return reply('Reply to video/sticker!')
                         react('⏳')
                         try {
-                            const type = quoted.videoMessage? 'video' : 'sticker'
-                            const stream = await downloadContentFromMessage(quoted[type + 'Message'], type)
-                            let buf = Buffer.from([])
-                            for await (const chunk of stream) buf = Buffer.concat([buf, chunk])
+                            const mediaType = quoted.videoMessage? 'video' : 'sticker'
+                            const gifStream = await downloadContentFromMessage(quoted[mediaType + 'Message'], mediaType)
+                            let gifBuf = Buffer.from([])
+                            for await (const chunk of gifStream) gifBuf = Buffer.concat([gifBuf, chunk])
                             const form = new FormData()
-                            form.append('video', buf, 'video.mp4')
+                            form.append('video', gifBuf, 'video.mp4')
                             const res = await axios.post(`${global.xwolf}/api/converter/video-to-gif`, form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
                             await sock.sendMessage(from, { video: Buffer.from(res.data), gifPlayback: true }, { quoted: msg })
                             react('✅')
@@ -302,11 +289,11 @@ async function connectToWhatsApp() {
                         if (!quoted?.imageMessage) return reply('Reply to an image!')
                         react('⏳')
                         try {
-                            const stream = await downloadContentFromMessage(quoted.imageMessage, 'image')
-                            let buf = Buffer.from([])
-                            for await (const chunk of stream) buf = Buffer.concat([buf, chunk])
+                            const imgStream = await downloadContentFromMessage(quoted.imageMessage, 'image')
+                            let imgBuf = Buffer.from([])
+                            for await (const chunk of imgStream) imgBuf = Buffer.concat([imgBuf, chunk])
                             const form = new FormData()
-                            form.append('image', buf, 'image.jpg')
+                            form.append('image', imgBuf, 'image.jpg')
                             const res = await axios.post(`${global.xwolf}/api/ai/removebg`, form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
                             await sock.sendMessage(from, { image: Buffer.from(res.data), caption: 'Background Removed' }, { quoted: msg })
                             react('✅')
@@ -349,8 +336,8 @@ async function connectToWhatsApp() {
                         break
                     case 'link': case 'getlink':
                         if (!isGroup ||!botAdmin) return reply('Bot needs admin!')
-                        const code = await sock.groupInviteCode(from)
-                        reply(`https://chat.whatsapp.com/${code}`)
+                        const inviteCode = await sock.groupInviteCode(from)
+                        reply(`https://chat.whatsapp.com/${inviteCode}`)
                         break
                     case 'revoke':
                         if (!isGroup ||!botAdmin) return reply('Bot needs admin!')
@@ -370,10 +357,10 @@ async function connectToWhatsApp() {
                     case 'setgcpp':
                         if (!isGroup ||!isAdmin ||!botAdmin) return reply('Admin only!'); if (!quoted?.imageMessage) return reply('Reply to image!')
                         react('⏳')
-                        const stream = await downloadContentFromMessage(quoted.imageMessage, 'image')
-                        let buf = Buffer.from([])
-                        for await (const chunk of stream) buf = Buffer.concat([buf, chunk])
-                        await sock.updateProfilePicture(from, buf)
+                        const dpStream = await downloadContentFromMessage(quoted.imageMessage, 'image')
+                        let dpBuf = Buffer.from([])
+                        for await (const chunk of dpStream) dpBuf = Buffer.concat([dpBuf, chunk])
+                        await sock.updateProfilePicture(from, dpBuf)
                         react('✅')
                         reply('✅ Group DP updated')
                         break
@@ -411,14 +398,17 @@ async function connectToWhatsApp() {
                         break
                     case 'listwarn':
                         if (!isGroup) return reply('Group only!')
-                        let list = '*WARN LIST*\n\n'
+                        let warnList = '*WARN LIST*\n\n'
+                        let hasWarns = false
                         for (let user in db.users) {
-                            if (db.users[user].warns > 0) list += `@${user.split('@')[0]}: ${db.users[user].warns}/3\n`
+                            if (db.users.warns > 0) {
+                                warnList += `@${user.split('@')[0]}: ${db.users.warns}/3\n`
+                                hasWarns = true
+                            }
                         }
-                        reply(list || 'No warnings')
+                        reply(hasWarns? warnList : 'No warnings')
                         break
-
-                    case 'play': case 'song':
+                   case 'play': case 'song':
                         if (!q) return reply('Song name?')
                         react('🎵')
                         try {
@@ -523,7 +513,7 @@ async function connectToWhatsApp() {
                         react('💻')
                         try {
                             const res = await axios.post(`${global.xwolf}/api/ai/code`, { prompt: q })
-                            reply(`\`\`\`\n${res.data.result}\n\`\`\``)
+                            reply(`\`\`\n${res.data.result}\n\`\`\``)
                             react('✅')
                         } catch { reply('❌ Code generation failed') }
                         break
@@ -531,11 +521,11 @@ async function connectToWhatsApp() {
                         if (!quoted?.imageMessage) return reply('Reply to an image!')
                         react('🔍')
                         try {
-                            const stream = await downloadContentFromMessage(quoted.imageMessage, 'image')
-                            let buf = Buffer.from([])
-                            for await (const chunk of stream) buf = Buffer.concat([buf, chunk])
+                            const scanStream = await downloadContentFromMessage(quoted.imageMessage, 'image')
+                            let scanBuf = Buffer.from([])
+                            for await (const chunk of scanStream) scanBuf = Buffer.concat([scanBuf, chunk])
                             const form = new FormData()
-                            form.append('image', buf, 'scan.jpg')
+                            form.append('image', scanBuf, 'scan.jpg')
                             const res = await axios.post(`${global.xwolf}/api/ai/scanner`, form, { headers: form.getHeaders() })
                             reply(`*Text Found:*\n\n${res.data.result}`)
                             react('✅')
@@ -554,9 +544,9 @@ async function connectToWhatsApp() {
                         if (!quoted?.audioMessage) return reply('Reply to audio!')
                         react('🎵')
                         try {
-                            const stream = await downloadContentFromMessage(quoted.audioMessage, 'audio')
+                            const audioStream = await downloadContentFromMessage(quoted.audioMessage, 'audio')
                             let audioBuf = Buffer.from([])
-                            for await (const chunk of stream) audioBuf = Buffer.concat([audioBuf, chunk])
+                            for await (const chunk of audioStream) audioBuf = Buffer.concat([audioBuf, chunk])
                             const form = new FormData()
                             form.append('audio', audioBuf, 'audio.mp3')
                             const res = await axios.post(`${global.xwolf}/api/shazam/recognize`, form, { headers: form.getHeaders() })
@@ -642,12 +632,12 @@ async function connectToWhatsApp() {
                         if (!quoted?.audioMessage &&!quoted?.videoMessage) return reply('Reply to audio/video!')
                         react('🎧')
                         try {
-                            const type = quoted.audioMessage? 'audio' : 'video'
-                            const stream = await downloadContentFromMessage(quoted[type + 'Message'], type)
-                            let buf = Buffer.from([])
-                            for await (const chunk of stream) buf = Buffer.concat([buf, chunk])
+                            const audioType = quoted.audioMessage? 'audio' : 'video'
+                            const audioStream = await downloadContentFromMessage(quoted[audioType + 'Message'], audioType)
+                            let audioBuf = Buffer.from([])
+                            for await (const chunk of audioStream) audioBuf = Buffer.concat([audioBuf, chunk])
                             const form = new FormData()
-                            form.append('audio', buf, 'audio.mp3')
+                            form.append('audio', audioBuf, 'audio.mp3')
                             const effect = command === 'bassboost'? 'bassboost' : command
                             const res = await axios.post(`${global.xwolf}/api/audio/${effect}`, form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
                             await sock.sendMessage(from, { audio: Buffer.from(res.data), mimetype: 'audio/mpeg' }, { quoted: msg })
@@ -660,8 +650,8 @@ async function connectToWhatsApp() {
                         break
                     case 'daily':
                         const last = db.users[sender].lastDaily || 0
-                        if (Date.now() - last < 86400000) return reply('❌ Already claimed! Come back tomorrow')
-                        db.users[sender].balance +=500
+                                                if (Date.now() - last < 86400000) return reply('❌ Already claimed! Come back tomorrow')
+                        db.users[sender].balance += 500
                         db.users[sender].lastDaily = Date.now()
                         saveDB()
                         reply('✅ Claimed $500 daily reward!')
@@ -681,6 +671,7 @@ async function connectToWhatsApp() {
                         if (!target ||!amount || amount <= 0) return reply('Usage:.give @user 100')
                         if (db.users[sender].balance < amount) return reply('❌ Insufficient funds!')
                         db.users[sender].balance -= amount
+                        if (!db.users[target]) db.users[target] = { balance: 100, warns: 0, banned: false, lastDaily: 0, lastWork: 0 }
                         db.users[target].balance += amount
                         saveDB()
                         reply(`✅ Sent $${amount} to @${target.split('@')[0]}\n💰 Your balance: $${db.users[sender].balance}`)
@@ -712,7 +703,6 @@ async function connectToWhatsApp() {
                         reply(`✅ Purchased item ${item} for $${prices[item]}!\n💰 Balance: $${db.users[sender].balance}`)
                         break
 
-                    // SEARCH
                     case 'google':
                         if (!q) return reply('Search query?')
                         reply(`🔍 https://www.google.com/search?q=${encodeURIComponent(q)}`)
@@ -756,7 +746,6 @@ async function connectToWhatsApp() {
                         } catch { reply('❌ Movie not found') }
                         break
 
-                    // UTILITY
                     case 'ssweb': case 'screenshot':
                         if (!q) return reply('URL?')
                         react('📸')
@@ -794,14 +783,12 @@ async function connectToWhatsApp() {
                     default:
                         if (body.startsWith(global.prefix)) reply(`❌ Command *${command}* not found! Use ${global.prefix}menu`)
                 }
-
             } catch (e) {
                 console.error(e)
                 sock.sendMessage(from, { text: '❌ Error occurred!' }, { quoted: msg })
             }
         })
 
-        // Welcome & Goodbye
         sock.ev.on('group-participants.update', async (update) => {
             try {
                 const { id, participants, action } = update
@@ -829,3 +816,4 @@ connectToWhatsApp()
 
 app.get('/', (req, res) => res.send('✅ Bot is connected!'))
 app.listen(port, () => console.log(`Server running on port ${port}`))
+                
