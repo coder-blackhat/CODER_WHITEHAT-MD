@@ -1,3 +1,42 @@
+async function connectBot() {
+  try {
+    console.log("Starting Baileys...");
+    const { state, saveCreds } = await useMultiFileAuthState("/tmp/session");
+    const sock = makeWASocket({
+      auth: state,
+      logger: pino({ level: "info" }),
+      browser: Browsers.macOS("Desktop"),
+      printQRInTerminal: false
+    });
+
+    sock.ev.on("connection.update", async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+      console.log("Connection update:", connection);
+      
+      if (qr) {
+        qrCodeData = await qrcode.toDataURL(qr);
+        botStatus = "qr";
+        console.log("QR Generated - scan now");
+      }
+      if (connection === "close") {
+        const shouldReconnect = (lastDisconnect?.error instanceof Boom)? lastDisconnect.error.output.statusCode!== DisconnectReason.loggedOut : true;
+        console.log("Connection closed, reconnect:", shouldReconnect);
+        botStatus = "disconnected";
+        qrCodeData = "";
+        if (shouldReconnect) setTimeout(connectBot, 3000);
+      } else if (connection === "open") {
+        botStatus = "open";
+        qrCodeData = "";
+        console.log("Bot Connection: open");
+      }
+    });
+
+    sock.ev.on("creds.update", saveCreds);
+  } catch (err) {
+    console.error("Bot startup error:", err);
+    botStatus = "error";
+  }
+  }
 const crypto = require('crypto');
 global.crypto = crypto;
 const express = require("express");
