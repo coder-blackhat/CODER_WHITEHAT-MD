@@ -1,3 +1,4 @@
+global.crypto = require('crypto')
 const express = require('express')
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
 const qrcode = require('qrcode')
@@ -88,4 +89,4 @@ const PORT = process.env.PORT || 8080
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
     connectToWhatsApp()
-})
+}) 
