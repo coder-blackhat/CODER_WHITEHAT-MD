@@ -1,46 +1,59 @@
 const express = require('express')
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require('@whiskeysockets/baileys')
 const qrcode = require('qrcode')
 const pino = require('pino')
+const fs = require('fs')
 const app = express()
 
 let qrCode = ''
 let isConnected = false
 
 async function connectToWhatsApp() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info')
-    
-    const sock = makeWASocket({
-        logger: pino({ level: 'silent' }),
-        auth: state,
-        printQRInTerminal: false,
-        browser: ['CODER_WHITEHAT-MD', 'Chrome', '1.0.0']
-    })
+    try {
+        const { state, saveCreds } = await useMultiFileAuthState('auth_info')
+        
+        const sock = makeWASocket({
+            logger: pino({ level: 'silent' }),
+            auth: state,
+            printQRInTerminal: false,
+            browser: Browsers.ubuntu('Chrome')
+        })
 
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update
-        
-        if (qr) {
-            console.log('QR Generated - scan now')
-            qrCode = await qrcode.toDataURL(qr)
-            isConnected = false
-        }
-        
-        if (connection === 'close') {
-            isConnected = false
-            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
-            if (shouldReconnect) {
-                console.log('Reconnecting...')
-                setTimeout(() => connectToWhatsApp(), 3000)
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update
+            
+            if (qr) {
+                console.log('QR Generated - scan now')
+                qrCode = await qrcode.toDataURL(qr)
+                isConnected = false
             }
-        } else if (connection === 'open') {
-            console.log('Bot connected to WhatsApp!')
-            isConnected = true
-            qrCode = ''
-        }
-    })
+            
+            if (connection === 'close') {
+                isConnected = false
+                const statusCode = lastDisconnect?.error?.output?.statusCode
+                console.log('Connection closed. Status:', statusCode)
+                
+                if (statusCode === DisconnectReason.loggedOut) {
+                    console.log('Logged out. Deleting auth and restarting...')
+                    fs.rmSync('auth_info', { recursive: true, force: true })
+                }
+                
+                console.log('Reconnecting in 3s...')
+                setTimeout(() => connectToWhatsApp(), 3000)
+            } else if (connection === 'open') {
+                console.log('Bot connected to WhatsApp!')
+                isConnected = true
+                qrCode = ''
+            }
+        })
 
-    sock.ev.on('creds.update', saveCreds)
+        sock.ev.on('creds.update', saveCreds)
+        
+    } catch (err) {
+        console.log('FATAL ERROR:', err.message)
+        console.log('Retrying in 5s...')
+        setTimeout(() => connectToWhatsApp(), 5000)
+    }
 }
 
 app.get('/', (req, res) => {
@@ -51,14 +64,15 @@ app.get('/', (req, res) => {
                     <div style="text-align:center;">
                         <h2 style="color:#fff;font-family:sans-serif;">Scan with WhatsApp</h2>
                         <img src="${qrCode}" style="border:10px solid #fff;width:300px;">
+                        <p style="color:#888;font-family:sans-serif;">CODER_WHITEHAT-MD</p>
                     </div>
                 </body>
             </html>
         `)
     } else if (isConnected) {
-        res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">Bot is connected!</h1>')
+        res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">✅ Bot is connected!</h1>')
     } else {
-        res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">Starting bot...</h1>')
+        res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">Starting bot... Refresh in 10s</h1>')
     }
 })
 
