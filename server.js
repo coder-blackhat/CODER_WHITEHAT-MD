@@ -1,40 +1,73 @@
-const crypto = require('crypto');
-global.crypto = crypto;
-const express = require("express");
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require("@whiskeysockets/baileys");
-const { Boom } = require("@hapi/boom");
-const qrcode = require("qrcode");
-const pino = require("pino");
+const express = require('express')
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
+const qrcode = require('qrcode')
+const pino = require('pino')
+const app = express()
 
-console.log("Script starting...");
+let qrCode = ''
+let isConnected = false
 
-const app = express();
-const PORT = process.env.PORT || 8080;
+async function connectToWhatsApp() {
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info')
+    
+    const sock = makeWASocket({
+        logger: pino({ level: 'silent' }),
+        auth: state,
+        printQRInTerminal: false,
+        browser: ['CODER_WHITEHAT-MD', 'Chrome', '1.0.0']
+    })
 
-let qrCodeData = "";
-let botStatus = "starting";
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update
+        
+        if (qr) {
+            console.log('QR Generated - scan now')
+            qrCode = await qrcode.toDataURL(qr)
+            isConnected = false
+        }
+        
+        if (connection === 'close') {
+            isConnected = false
+            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+            if (shouldReconnect) {
+                console.log('Reconnecting...')
+                setTimeout(() => connectToWhatsApp(), 3000)
+            }
+        } else if (connection === 'open') {
+            console.log('Bot connected to WhatsApp!')
+            isConnected = true
+            qrCode = ''
+        }
+    })
 
-app.get("/", (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html><head><title>CODER_WHITEHAT-MD</title><meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>body{background:#0d1117;color:#fff;font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}.card{background:#161b22;padding:30px;border-radius:12px;text-align:center;max-width:350px;border:1px solid #30363d}h1{color:#25D366;margin:0 0 20px}img{width:280px;height:280px;border:4px solid #25D366;border-radius:8px;margin:15px 0}.status{padding:8px;border-radius:6px;font-weight:600;margin:15px 0}.online{background:#238636}.offline{background:#da3633}.waiting{background:#9e6a03}.error{background:#bf3b32}button{background:#25D366;color:#000;border:none;padding:10px 20px;border-radius:6px;font-weight:bold;cursor:pointer}</style></head>
-    <body><div class="card"><h1>CODER_WHITEHAT-MD</h1>
-    <div class="status ${botStatus === 'open'? 'online' : botStatus === 'qr'? 'waiting' : botStatus === 'error'? 'error' : 'offline'}">
-      ${botStatus === 'open'? '✅ CONNECTED' : botStatus === 'qr'? '📱 SCAN QR' : botStatus === 'error'? '❌ ERROR - CHECK LOGS' : '⚠️ STARTING'}
-    </div>
-    ${qrCodeData? `<img src="${qrCodeData}"><p>WhatsApp > Linked Devices</p>` : '<p>Generating... <a href="/">Refresh</a></p>'}
-    <button onclick="location.reload()">Refresh</button></div></body></html>
-  `);
-});
+    sock.ev.on('creds.update', saveCreds)
+}
 
-app.get("/ping", (req, res) => res.json({ status: botStatus }));
+app.get('/', (req, res) => {
+    if (qrCode && !isConnected) {
+        res.send(`
+            <html>
+                <body style="background:#111;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">
+                    <div style="text-align:center;">
+                        <h2 style="color:#fff;font-family:sans-serif;">Scan with WhatsApp</h2>
+                        <img src="${qrCode}" style="border:10px solid #fff;width:300px;">
+                        <p style="color:#888;font-family:sans-serif;">CODER_WHITEHAT-MD</p>
+                    </div>
+                </body>
+            </html>
+        `)
+    } else if (isConnected) {
+        res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">Bot is connected to WhatsApp!</h1>')
+    } else {
+        res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">Starting bot... Refresh in 10 seconds</h1>')
+    }
+})
 
+const PORT = process.env.PORT || 8080
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  setTimeout(connectBot, 2000);
-});
-
+    console.log(`Server running on port ${PORT}`)
+    connectToWhatsApp()
+})
 async function connectBot() {
   try {
     console.log("Starting Baileys...");
