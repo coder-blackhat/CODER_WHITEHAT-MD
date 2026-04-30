@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+global.crypto = crypto;
 const express = require("express");
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require("@whiskeysockets/baileys");
 const { Boom } = require("@hapi/boom");
