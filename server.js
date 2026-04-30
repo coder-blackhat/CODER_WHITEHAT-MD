@@ -10,7 +10,6 @@ let isConnected = false
 
 async function connectToWhatsApp() {
     try {
-        // Force delete old session on every start to fix corruption
         if (fs.existsSync('auth_info')) {
             console.log('Clearing old session...')
             fs.rmSync('auth_info', { recursive: true, force: true })
@@ -69,4 +68,24 @@ app.get('/', (req, res) => {
     if (qrCode && !isConnected) {
         res.send(`
             <html>
-                <body style=" 
+                <body style="background:#111;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">
+                    <div style="text-align:center;">
+                        <h2 style="color:#fff;font-family:sans-serif;">Scan with WhatsApp</h2>
+                        <img src="${qrCode}" style="border:10px solid #fff;width:300px;">
+                        <p style="color:#888;font-family:sans-serif;">CODER_WHITEHAT-MD</p>
+                    </div>
+                </body>
+            </html>
+        `)
+    } else if (isConnected) {
+        res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">✅ Bot is connected!</h1>')
+    } else {
+        res.send('<h1 style="font-family:sans-serif;text-align:center;margin-top:50px;">Starting bot... Refresh in 10s</h1>')
+    }
+})
+
+const PORT = process.env.PORT || 8080
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`)
+    connectToWhatsApp()
+})
