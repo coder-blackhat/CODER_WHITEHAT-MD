@@ -51,11 +51,16 @@ async function connectToWhatsApp() {
             auth: state,
             browser: ['CODER_WHITEHAT-MD', 'Chrome', '110.0.0'],
             version,
-            printQRInTerminal: false
+            printQRInTerminal: true // <-- QR CODE ENABLED
         })
 
         sock.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect } = update
+            const { connection, lastDisconnect, qr } = update
+
+            if (qr) {
+                console.log('📱 SCAN THIS QR CODE IN RAILWAY LOGS:')
+                console.log(qr)
+            }
 
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode
@@ -75,20 +80,6 @@ async function connectToWhatsApp() {
                 }
             } else if (connection === 'connecting') {
                 console.log('Connecting to WhatsApp...')
-            }
-
-            if (!sock.authState.creds.registered) {
-                setTimeout(async () => {
-                    try {
-                        const code = await sock.requestPairingCode(global.ownernumber)
-                        console.log(`\n\n=== PAIRING CODE ===`)
-                        console.log(`Number: ${global.ownernumber}`)
-                        console.log(`Code: ${code}`)
-                        console.log(`====================\n\n`)
-                    } catch (e) {
-                        console.log('Pairing code error:', e.message)
-                    }
-                }, 3000)
             }
         })
 
@@ -141,34 +132,6 @@ async function connectToWhatsApp() {
                 const react = (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } })
 
                 switch (command) {
-                    case 'pair':
-                        if (isGroup) return reply('❌ Use this in private chat!')
-                        if (!q) return reply(`*Usage:* ${global.prefix}pair 263771234567\n\nSend your number with country code to get a pairing code.`)
-                        try {
-                            react('⏳')
-                            const cleanNum = q.replace(/[^0-9]/g, '')
-                            if (cleanNum.length < 11) return reply('❌ Invalid number. Use full country code: 263771234567')
-                            const { state: pairState, saveCreds: savePairCreds } = await useMultiFileAuthState(`./pair_${cleanNum}`)
-                            const pairSock = makeWASocket({
-                                auth: pairState,
-                                printQRInTerminal: false,
-                                logger: pino({ level: 'silent' }),
-                                browser: ['Ubuntu', 'Chrome', '20.0.04']
-                            })
-                            pairSock.ev.on('creds.update', savePairCreds)
-                            await new Promise(resolve => setTimeout(resolve, 2000))
-                            if (!pairSock.authState.creds.registered) {
-                                const code = await pairSock.requestPairingCode(cleanNum)
-                                reply(`*PAIRING CODE FOR ${cleanNum}*\n\nCode: *${code}*\n\n1. WhatsApp > Linked Devices\n2. Link with phone number\n3. Enter this code\n\n_Expires in 60s_`)
-                                setTimeout(() => pairSock.end(), 60000)
-                            } else reply('✅ Number already registered!')
-                            react('✅')
-                        } catch (e) {
-                            console.log('Pair error:', e)
-                            reply('❌ Error. Number may be banned or try again.')
-                        }
-                        break
-
                     case 'menu': case 'help': case 'list':
                         const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
 ┃ 📱 Version: ${global.version}
@@ -186,7 +149,7 @@ async function connectToWhatsApp() {
 ┃ ⫷ 𝐎𝐖𝐍𝐄𝐑 ⫸
 ┃ +${global.prefix}owner +${global.prefix}ping +${global.prefix}runtime
 ┃ +${global.prefix}public +${global.prefix}private +${global.prefix}autoread
-┃ +${global.prefix}block +${global.prefix}unblock +${global.prefix}pair
+┃ +${global.prefix}block +${global.prefix}unblock
 ┃ ⫷ 𝐆𝐑𝐎𝐔𝐏 ⫸
 ┃ +${global.prefix}kick +${global.prefix}add +${global.prefix}promote +${global.prefix}demote
 ┃ +${global.prefix}tagall +${global.prefix}hidetag +${global.prefix}group open/close
