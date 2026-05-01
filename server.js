@@ -14,7 +14,7 @@ const port = process.env.PORT || 8080
 // Bot Config
 global.botname = 'CODER_WHITEHAT'
 global.ownername = 'CODER_WHITEHAT'
-global.ownernumber = '263771405118' // <-- CHANGED TO YOUR NUMBER
+global.ownernumber = '263771405118'
 global.prefix = '.'
 global.mode = 'public'
 global.version = '3.0.0'
@@ -34,7 +34,6 @@ const runtime = () => {
 
 async function connectToWhatsApp() {
     try {
-        // FORCE CLEAN SESSION - prevents "No sessions" error
         if (fs.existsSync('auth_info')) {
             fs.rmSync('auth_info', { recursive: true, force: true })
             console.log('🗑️ Deleted old auth_info folder')
@@ -78,7 +77,6 @@ async function connectToWhatsApp() {
                 console.log('Connecting to WhatsApp...')
             }
 
-            // AUTO PAIRING CODE FOR YOUR NUMBER
             if (!sock.authState.creds.registered) {
                 setTimeout(async () => {
                     try {
@@ -633,12 +631,12 @@ async function connectToWhatsApp() {
                 if (!db.groups[id]) return
                 if (action === 'add' && db.groups[id].welcome) {
                     for (let user of participants) {
-                        await sock.sendMessage(id, { text: `Welcome @${user.split('@')[0]}! 🎉`, mentions: })
+                        await sock.sendMessage(id, { text: `Welcome @${user.split('@')[0]}! 🎉`, mentions: [] })
                     }
                 }
                 if (action === 'remove' && db.groups[id].goodbye) {
                     for (let user of participants) {
-                        await sock.sendMessage(id, { text: `Goodbye @${user.split('@')[0]} 👋`, mentions: })
+                        await sock.sendMessage(id, { text: `Goodbye @${user.split('@')[0]} 👋`, mentions: [] })
                     }
                 }
             } catch (e) { console.error(e) }
