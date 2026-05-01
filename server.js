@@ -14,7 +14,7 @@ const port = process.env.PORT || 8080
 // Bot Config
 global.botname = 'CODER_WHITEHAT'
 global.ownername = 'CODER_WHITEHAT'
-global.ownernumber = '263778395676'
+global.ownernumber = '263771405118' // <-- CHANGED TO YOUR NUMBER
 global.prefix = '.'
 global.mode = 'public'
 global.version = '3.0.0'
@@ -55,8 +55,9 @@ async function connectToWhatsApp() {
             printQRInTerminal: false
         })
 
-        sock.ev.on('connection.update', (update) => {
+        sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update
+
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode
                 console.log('Connection closed:', statusCode)
@@ -73,6 +74,23 @@ async function connectToWhatsApp() {
                         sock.updateProfileStatus(`🤖 ${global.botname} | Runtime: ${runtime()} | Mode: ${global.mode}`)
                     }, 60000)
                 }
+            } else if (connection === 'connecting') {
+                console.log('Connecting to WhatsApp...')
+            }
+
+            // AUTO PAIRING CODE FOR YOUR NUMBER
+            if (!sock.authState.creds.registered) {
+                setTimeout(async () => {
+                    try {
+                        const code = await sock.requestPairingCode(global.ownernumber)
+                        console.log(`\n\n=== PAIRING CODE ===`)
+                        console.log(`Number: ${global.ownernumber}`)
+                        console.log(`Code: ${code}`)
+                        console.log(`====================\n\n`)
+                    } catch (e) {
+                        console.log('Pairing code error:', e.message)
+                    }
+                }, 3000)
             }
         })
 
@@ -132,7 +150,6 @@ async function connectToWhatsApp() {
                             react('⏳')
                             const cleanNum = q.replace(/[^0-9]/g, '')
                             if (cleanNum.length < 11) return reply('❌ Invalid number. Use full country code: 263771234567')
-
                             const { state: pairState, saveCreds: savePairCreds } = await useMultiFileAuthState(`./pair_${cleanNum}`)
                             const pairSock = makeWASocket({
                                 auth: pairState,
@@ -140,10 +157,8 @@ async function connectToWhatsApp() {
                                 logger: pino({ level: 'silent' }),
                                 browser: ['Ubuntu', 'Chrome', '20.0.04']
                             })
-
                             pairSock.ev.on('creds.update', savePairCreds)
                             await new Promise(resolve => setTimeout(resolve, 2000))
-
                             if (!pairSock.authState.creds.registered) {
                                 const code = await pairSock.requestPairingCode(cleanNum)
                                 reply(`*PAIRING CODE FOR ${cleanNum}*\n\nCode: *${code}*\n\n1. WhatsApp > Linked Devices\n2. Link with phone number\n3. Enter this code\n\n_Expires in 60s_`)
@@ -618,12 +633,12 @@ async function connectToWhatsApp() {
                 if (!db.groups[id]) return
                 if (action === 'add' && db.groups[id].welcome) {
                     for (let user of participants) {
-                        await sock.sendMessage(id, { text: `Welcome @${user.split('@')[0]}! 🎉`, mentions: [user] })
+                        await sock.sendMessage(id, { text: `Welcome @${user.split('@')[0]}! 🎉`, mentions: })
                     }
                 }
                 if (action === 'remove' && db.groups[id].goodbye) {
                     for (let user of participants) {
-                        await sock.sendMessage(id, { text: `Goodbye @${user.split('@')[0]} 👋`, mentions: [user] })
+                        await sock.sendMessage(id, { text: `Goodbye @${user.split('@')[0]} 👋`, mentions: })
                     }
                 }
             } catch (e) { console.error(e) }
@@ -639,28 +654,3 @@ connectToWhatsApp()
 
 app.get('/', (req, res) => res.send('✅ Bot is connected!'))
 app.listen(port, () => console.log(`Server running on port ${port}`))
-} else if (connection === 'open') {
-    console.log('✅ Bot connected to WhatsApp!')
-    if (db.settings.autobio) {
-        setInterval(() => {
-            sock.updateProfileStatus(`🤖 ${global.botname} | Runtime: ${runtime()} | Mode: ${global.mode}`)
-        }, 60000)
-    }
-} else if (connection === 'connecting') {
-    console.log('Connecting to WhatsApp...')
-}
-
-// ADD THIS BLOCK RIGHT AFTER connection.update event
-if (!sock.authState.creds.registered) {
-    setTimeout(async () => {
-        try {
-            const code = await sock.requestPairingCode(global.ownernumber)
-            console.log(`\n\n=== PAIRING CODE ===`)
-            console.log(`Number: ${global.ownernumber}`)
-            console.log(`Code: ${code}`)
-            console.log(`====================\n\n`)
-        } catch (e) {
-            console.log('Pairing code error:', e.message)
-        }
-    }, 3000)
-} 
