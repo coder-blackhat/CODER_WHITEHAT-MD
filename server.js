@@ -639,3 +639,28 @@ connectToWhatsApp()
 
 app.get('/', (req, res) => res.send('✅ Bot is connected!'))
 app.listen(port, () => console.log(`Server running on port ${port}`))
+} else if (connection === 'open') {
+    console.log('✅ Bot connected to WhatsApp!')
+    if (db.settings.autobio) {
+        setInterval(() => {
+            sock.updateProfileStatus(`🤖 ${global.botname} | Runtime: ${runtime()} | Mode: ${global.mode}`)
+        }, 60000)
+    }
+} else if (connection === 'connecting') {
+    console.log('Connecting to WhatsApp...')
+}
+
+// ADD THIS BLOCK RIGHT AFTER connection.update event
+if (!sock.authState.creds.registered) {
+    setTimeout(async () => {
+        try {
+            const code = await sock.requestPairingCode(global.ownernumber)
+            console.log(`\n\n=== PAIRING CODE ===`)
+            console.log(`Number: ${global.ownernumber}`)
+            console.log(`Code: ${code}`)
+            console.log(`====================\n\n`)
+        } catch (e) {
+            console.log('Pairing code error:', e.message)
+        }
+    }, 3000)
+} 
