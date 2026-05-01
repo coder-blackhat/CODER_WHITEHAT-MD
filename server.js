@@ -21,7 +21,6 @@ global.version = '3.0.0'
 global.host = 'Railway'
 global.platform = process.platform
 global.startTime = Date.now()
-global.xwolf = 'https://apis.xwolf.space'
 
 // Database
 let db = { users: {}, groups: {}, settings: { chatbot: false, autoread: false, autobio: false } }
@@ -35,10 +34,14 @@ const runtime = () => {
 
 async function connectToWhatsApp() {
     try {
-        if (fs.existsSync('auth_info.zip') &&!fs.existsSync('auth_info')) {
-            const zip = new AdmZip('auth_info.zip')
-            zip.extractAllTo('.', true)
-            console.log('✅ Unzipped Termux session')
+        // FORCE CLEAN SESSION - prevents "No sessions" error
+        if (fs.existsSync('auth_info')) {
+            fs.rmSync('auth_info', { recursive: true, force: true })
+            console.log('🗑️ Deleted old auth_info folder')
+        }
+        if (fs.existsSync('auth_info.zip')) {
+            fs.unlinkSync('auth_info.zip')
+            console.log('🗑️ Deleted auth_info.zip')
         }
 
         const { version } = await fetchLatestBaileysVersion()
@@ -60,6 +63,8 @@ async function connectToWhatsApp() {
                 if (statusCode!== DisconnectReason.loggedOut) {
                     console.log('Reconnecting...')
                     setTimeout(connectToWhatsApp, 3000)
+                } else {
+                    console.log('Logged out. Delete auth_info and restart.')
                 }
             } else if (connection === 'open') {
                 console.log('✅ Bot connected to WhatsApp!')
@@ -121,93 +126,77 @@ async function connectToWhatsApp() {
 
                 switch (command) {
                     case 'pair':
-    if (isGroup) return reply('❌ Use this in private chat!')
-    if (!q) return reply(`*Usage:* ${global.prefix}pair 263771234567\n\nSend your number with country code to get a pairing code.`)
-    try {
-        react('⏳')
-        const cleanNum = q.replace(/[^0-9]/g, '')
-        if (cleanNum.length < 11) return reply('❌ Invalid number. Use full country code: 263771234567')
-        
-        const { state: pairState, saveCreds: savePairCreds } = await useMultiFileAuthState(`./pair_${cleanNum}`)
-        const pairSock = makeWASocket({ 
-            auth: pairState, 
-            printQRInTerminal: false,
-            logger: pino({ level: 'silent' }),
-            browser: ['Ubuntu', 'Chrome', '20.0.04']
-        })
-        
-        pairSock.ev.on('creds.update', savePairCreds)
-        
-        await new Promise(resolve => setTimeout(resolve, 2000)) // wait for socket ready
-        
-        if (!pairSock.authState.creds.registered) {
-            const code = await pairSock.requestPairingCode(cleanNum)
-            reply(`*PAIRING CODE FOR ${cleanNum}*\n\nCode: *${code}*\n\n1. WhatsApp > Linked Devices\n2. Link with phone number\n3. Enter this code\n\n_Expires in 60s_`)
-            setTimeout(() => pairSock.end(), 60000)
-        } else reply('✅ Number already registered!')
-        react('✅')
-    } catch (e) { 
-        console.log('Pair error:', e)
-        reply('❌ Error. Number may be banned or Baileys version issue.') 
-    }
-    break
+                        if (isGroup) return reply('❌ Use this in private chat!')
+                        if (!q) return reply(`*Usage:* ${global.prefix}pair 263771234567\n\nSend your number with country code to get a pairing code.`)
+                        try {
+                            react('⏳')
+                            const cleanNum = q.replace(/[^0-9]/g, '')
+                            if (cleanNum.length < 11) return reply('❌ Invalid number. Use full country code: 263771234567')
 
-case 'menu': case 'help': case 'list':
-const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
+                            const { state: pairState, saveCreds: savePairCreds } = await useMultiFileAuthState(`./pair_${cleanNum}`)
+                            const pairSock = makeWASocket({
+                                auth: pairState,
+                                printQRInTerminal: false,
+                                logger: pino({ level: 'silent' }),
+                                browser: ['Ubuntu', 'Chrome', '20.0.04']
+                            })
+
+                            pairSock.ev.on('creds.update', savePairCreds)
+                            await new Promise(resolve => setTimeout(resolve, 2000))
+
+                            if (!pairSock.authState.creds.registered) {
+                                const code = await pairSock.requestPairingCode(cleanNum)
+                                reply(`*PAIRING CODE FOR ${cleanNum}*\n\nCode: *${code}*\n\n1. WhatsApp > Linked Devices\n2. Link with phone number\n3. Enter this code\n\n_Expires in 60s_`)
+                                setTimeout(() => pairSock.end(), 60000)
+                            } else reply('✅ Number already registered!')
+                            react('✅')
+                        } catch (e) {
+                            console.log('Pair error:', e)
+                            reply('❌ Error. Number may be banned or try again.')
+                        }
+                        break
+
+                    case 'menu': case 'help': case 'list':
+                        const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
 ┃ 📱 Version: ${global.version}
 ┃ 👑 Owner: ${global.ownername}
 ┃ ⏰ Runtime: ${runtime()}
 ┃ 🔧 Mode: ${global.mode.toUpperCase()}
 ┃ 📝 Prefix: ${global.prefix}
 ┃ 🖥️ Host: ${global.host}
-┃ 💻 Platform: ${global.platform}
 ╰━━━━━━━━━━━━━━━⬣
 
 ╭━━〔 *ᴄᴏᴍᴀɴᴅs* 〕━━⬣
 ┃ ⫷ 𝐌𝐄𝐃𝐈𝐀 ⫸
-┃ +${global.prefix}sticker +${global.prefix}stickervid +${global.prefix}toimage
-┃ +${global.prefix}tovideo +${global.prefix}toaudio +${global.prefix}togif
-┃ +${global.prefix}removebg +${global.prefix}take <pack>
+┃ +${global.prefix}sticker +${global.prefix}toimage +${global.prefix}tovideo
+┃ +${global.prefix}toaudio +${global.prefix}removebg
 ┃ ⫷ 𝐎𝐖𝐍𝐄𝐑 ⫸
 ┃ +${global.prefix}owner +${global.prefix}ping +${global.prefix}runtime
 ┃ +${global.prefix}public +${global.prefix}private +${global.prefix}autoread
-┃ +${global.prefix}block +${global.prefix}unblock +${global.prefix}broadcast
-┃ +${global.prefix}join <link>
+┃ +${global.prefix}block +${global.prefix}unblock +${global.prefix}pair
 ┃ ⫷ 𝐆𝐑𝐎𝐔𝐏 ⫸
 ┃ +${global.prefix}kick +${global.prefix}add +${global.prefix}promote +${global.prefix}demote
 ┃ +${global.prefix}tagall +${global.prefix}hidetag +${global.prefix}group open/close
-┃ +${global.prefix}link +${global.prefix}revoke +${global.prefix}setgcname
-┃ +${global.prefix}setgcdesc +${global.prefix}setgcpp
+┃ +${global.prefix}link +${global.prefix}revoke
 ┃ ⫷ 𝐏𝐑𝐎𝐓𝐄𝐂𝐓𝐈𝐎𝐍 ⫸
-┃ +${global.prefix}antilink on/off +${global.prefix}antibot on/off
-┃ +${global.prefix}warn +${global.prefix}unwarn +${global.prefix}listwarn
+┃ +${global.prefix}antilink on/off +${global.prefix}warn +${global.prefix}unwarn
 ┃ ⫷ 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃 ⫸
 ┃ +${global.prefix}play +${global.prefix}ytmp3 +${global.prefix}ytmp4
 ┃ +${global.prefix}tiktok +${global.prefix}ig +${global.prefix}fb
-┃ +${global.prefix}lyrics +${global.prefix}spotify
 ┃ ⫷ 𝐀𝐈 𝐈𝐌𝐀𝐆𝐄 ⫸
-┃ +${global.prefix}imagine <prompt> +${global.prefix}lorem <w> <h>
-┃ +${global.prefix}bingimg
-┃ ⫷ 𝐀𝐈 𝐓𝐎𝐋𝐒 ⫸
-┃ +${global.prefix}summarize +${global.prefix}codeai +${global.prefix}scanner
-┃ +${global.prefix}humanizer +${global.prefix}removebg +${global.prefix}shazam
+┃ +${global.prefix}imagine <prompt>
 ┃ ⫷ 𝐀𝐈 𝐂𝐇𝐀𝐓 ⫸
 ┃ +${global.prefix}gpt +${global.prefix}claude +${global.prefix}gemini
-┃ +${global.prefix}deepseek +${global.prefix}groq +${global.prefix}openchat
 ┃ +${global.prefix}wormgpt
 ┃ ⫷ 𝐀𝐔𝐃𝐈𝐎 𝐄𝐅𝐄𝐂𝐓𝐒 ⫸
-┃ +${global.prefix}bass +${global.prefix}bassboost +${global.prefix}deep
-┃ +${global.prefix}robot +${global.prefix}telephone +${global.prefix}underwater
-┃ +${global.prefix}megaphone +${global.prefix}nightcore
+┃ +${global.prefix}bass +${global.prefix}robot +${global.prefix}nightcore
 ┃ ⫷ 𝐄𝐂𝐎𝐍𝐎𝐌𝐘 ⫸
 ┃ +${global.prefix}bal +${global.prefix}daily +${global.prefix}work
-┃ +${global.prefix}give +${global.prefix}gamble +${global.prefix}shop
+┃ +${global.prefix}give +${global.prefix}gamble
 ┃ ⫷ 𝐒𝐄𝐀𝐑𝐂𝐇 ⫸
-┃ +${global.prefix}google +${global.prefix}wiki +${global.prefix}npm
-┃ +${global.prefix}weather +${global.prefix}movie +${global.prefix}github
+┃ +${global.prefix}google +${global.prefix}wiki +${global.prefix}weather
 ┃ ⫷ 𝐔𝐓𝐈𝐋𝐈𝐓𝐘 ⫸
-┃ +${global.prefix}ssweb +${global.prefix}calc +${global.prefix}translate
-┃ +${global.prefix}tts +${global.prefix}pair
+┃ +${global.prefix}ssweb +${global.prefix}calc +${global.prefix}tts
 ╰━━━━━━━━━━━━━━━⬣
 > © ᴘᴏᴡᴇʀᴇᴅ ʙʏ CODER_WHITEHAT`
                         reply(menu)
@@ -230,18 +219,8 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         break
                     case 'block': if (!isOwner) return reply('Owner only!'); if (!q) return reply('Number?'); await sock.updateBlockStatus(q.replace(/[^0-9]/g, '') + '@s.whatsapp.net', 'block'); reply('✅ Blocked'); break
                     case 'unblock': if (!isOwner) return reply('Owner only!'); if (!q) return reply('Number?'); await sock.updateBlockStatus(q.replace(/[^0-9]/g, '') + '@s.whatsapp.net', 'unblock'); reply('✅ Unblocked'); break
-                    case 'broadcast':
-                        if (!isOwner) return reply('Owner only!'); if (!q) return reply('Text?')
-                        const chats = Object.keys(db.users)
-                        reply(`Broadcasting to ${chats.length} chats...`)
-                        for (let id of chats) { await sock.sendMessage(id, { text: `*BROADCAST*\n\n${q}` }); await new Promise(r => setTimeout(r, 1000)) }
-                        break
-                    case 'join':
-                        if (!isOwner) return reply('Owner only!'); if (!q.includes('chat.whatsapp.com')) return reply('Invalid link!')
-                        try { await sock.groupAcceptInvite(q.split('chat.whatsapp.com/')[1]); reply('✅ Joined') } catch { reply('❌ Failed') }
-                        break
 
-                    case 'sticker': case 's': case 'stickervid':
+                    case 'sticker': case 's':
                         if (!quoted) return reply('Reply to image/video!')
                         const type = getContentType(quoted)
                         if (!type.includes('image') &&!type.includes('video')) return reply('Reply to media!')
@@ -270,7 +249,7 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                             for await (const chunk of stm2) buf = Buffer.concat([buf, chunk])
                             const form = new FormData()
                             form.append('sticker', buf, 'sticker.webp')
-                            const res = await axios.post(`${global.xwolf}/api/converter/sticker-to-video`, form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
+                            const res = await axios.post('https://api.ryzendesu.vip/api/converter/webp-to-mp4', form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
                             await sock.sendMessage(from, { video: Buffer.from(res.data) }, { quoted: msg })
                             react('✅')
                         } catch { reply('❌ Conversion failed') }
@@ -286,21 +265,6 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                             react('✅')
                         } catch { reply('❌ Failed') }
                         break
-                    case 'togif':
-                        if (!quoted?.videoMessage &&!quoted?.stickerMessage) return reply('Reply to video/sticker!')
-                        react('⏳')
-                        try {
-                            const mediaType = quoted.videoMessage? 'video' : 'sticker'
-                            const gifStream = await downloadContentFromMessage(quoted[mediaType + 'Message'], mediaType)
-                            let gifBuf = Buffer.from([])
-                            for await (const chunk of gifStream) gifBuf = Buffer.concat([gifBuf, chunk])
-                            const form = new FormData()
-                            form.append('video', gifBuf, 'video.mp4')
-                            const res = await axios.post(`${global.xwolf}/api/converter/video-to-gif`, form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
-                            await sock.sendMessage(from, { video: Buffer.from(res.data), gifPlayback: true }, { quoted: msg })
-                            react('✅')
-                        } catch { reply('❌ Failed') }
-                        break
                     case 'removebg': case 'nobg':
                         if (!quoted?.imageMessage) return reply('Reply to an image!')
                         react('⏳')
@@ -310,7 +274,7 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                             for await (const chunk of imgStream) imgBuf = Buffer.concat([imgBuf, chunk])
                             const form = new FormData()
                             form.append('image', imgBuf, 'image.jpg')
-                            const res = await axios.post(`${global.xwolf}/api/ai/removebg`, form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
+                            const res = await axios.post('https://api.ryzendesu.vip/api/tools/removebg', form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
                             await sock.sendMessage(from, { image: Buffer.from(res.data), caption: 'Background Removed' }, { quoted: msg })
                             react('✅')
                         } catch { reply('❌ Remove BG failed') }
@@ -360,36 +324,11 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         await sock.groupRevokeInvite(from)
                         reply('✅ Link revoked')
                         break
-                    case 'setgcname':
-                        if (!isGroup ||!isAdmin ||!botAdmin) return reply('Admin only!'); if (!q) return reply('New name?')
-                        await sock.groupUpdateSubject(from, q)
-                        reply('✅ Name updated')
-                        break
-                    case 'setgcdesc':
-                        if (!isGroup ||!isAdmin ||!botAdmin) return reply('Admin only!'); if (!q) return reply('New desc?')
-                        await sock.groupUpdateDescription(from, q)
-                        reply('✅ Description updated')
-                        break
-                    case 'setgcpp':
-                        if (!isGroup ||!isAdmin ||!botAdmin) return reply('Admin only!'); if (!quoted?.imageMessage) return reply('Reply to image!')
-                        react('⏳')
-                        const dpStream = await downloadContentFromMessage(quoted.imageMessage, 'image')
-                        let dpBuf = Buffer.from([])
-                        for await (const chunk of dpStream) dpBuf = Buffer.concat([dpBuf, chunk])
-                        await sock.updateProfilePicture(from, dpBuf)
-                        react('✅')
-                        reply('✅ Group DP updated')
-                        break
 
                     case 'antilink':
                         if (!isGroup ||!isAdmin) return reply('Admin only!')
                         if (args[0] === 'on') { db.groups[from].antilink = true; saveDB(); reply('✅ Antilink ON') }
                         else if (args[0] === 'off') { db.groups[from].antilink = false; saveDB(); reply('✅ Antilink OFF') }
-                        break
-                    case 'antibot':
-                        if (!isGroup ||!isAdmin) return reply('Admin only!')
-                        if (args[0] === 'on') { db.groups[from].antibot = true; saveDB(); reply('✅ Antibot ON') }
-                        else if (args[0] === 'off') { db.groups[from].antibot = false; saveDB(); reply('✅ Antibot OFF') }
                         break
                     case 'warn':
                         if (!isGroup ||!isAdmin) return reply('Admin only!')
@@ -412,43 +351,46 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         saveDB()
                         reply('✅ Warnings cleared')
                         break
-                    case 'listwarn':
-                        if (!isGroup) return reply('Group only!')
-                        let warnList = '*WARN LIST*\n\n'
-                        let hasWarns = false
-                        for (let user in db.users) {
-                            if (db.users.warns > 0) {
-                                warnList += `@${user.split('@')[0]}: ${db.users.warns}/3\n`
-                                hasWarns = true
+
+                    case 'play': case 'song':
+                        if (!q) return reply('Song name?')
+                        react('🎵')
+                        try {
+                            let video, dlUrl
+                            try {
+                                const s1 = await axios.get(`https://api.ryzendesu.vip/api/search/yt?query=${encodeURIComponent(q)}`, { timeout: 10000 })
+                                if (s1.data[0]) {
+                                    video = s1.data[0]
+                                    const d1 = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${video.url}`, { timeout: 15000 })
+                                    dlUrl = d1.data.url
+                                }
+                            } catch {}
+                            if (!dlUrl) {
+                                const s2 = await axios.get(`https://api.vreden.my.id/api/ytplay?query=${encodeURIComponent(q)}`, { timeout: 10000 })
+                                if (s2.data.result?.metadata) {
+                                    video = s2.data.result.metadata
+                                    dlUrl = s2.data.result.mp3.url
+                                }
                             }
+                            if (!dlUrl) return reply(`❌ Song not found: *${q}*\n\nTry mainstream songs or use.ytmp3 with link`)
+                            await reply(`*Found:* ${video.title}\n_Downloading..._`)
+                            await sock.sendMessage(from, {
+                                audio: { url: dlUrl },
+                                mimetype: 'audio/mpeg',
+                                contextInfo: { externalAdReply: { title: video.title, thumbnailUrl: video.thumbnail }}
+                            }, { quoted: msg })
+                            react('✅')
+                        } catch (e) {
+                            console.log('Play error:', e.message)
+                            reply('❌ All APIs down. Try.ytmp3 with YouTube link.')
                         }
-                        reply(hasWarns? warnList : 'No warnings')
                         break
-                   case 'play': case 'song':
-    if (!q) return reply('Song name?')
-    react('🎵')
-    try {
-        const search = await axios.get(`https://api.dreaded.site/api/ytdl/search?query=${encodeURIComponent(q)}`)
-        if (!search.data.result?.length) return reply('❌ Song not found')
-        const video = search.data.result[0]
-        const dl = await axios.get(`https://api.dreaded.site/api/ytdl/audio?url=${video.url}`)
-        await sock.sendMessage(from, { 
-            audio: { url: dl.data.result.download }, 
-            mimetype: 'audio/mpeg', 
-            contextInfo: { externalAdReply: { title: video.title, thumbnailUrl: video.thumbnail }}
-        }, { quoted: msg })
-        react('✅')
-    } catch (e) { 
-        console.log('Play error:', e.message)
-        reply('❌ Download failed. API might be down.') 
-    }
-    break
                     case 'ytmp3': case 'yta':
                         if (!q) return reply('YouTube URL?')
                         react('⏳')
                         try {
-                            const res = await axios.get(`${global.xwolf}/download/yta?url=${encodeURIComponent(q)}`)
-                            await sock.sendMessage(from, { audio: { url: res.data.result.download }, mimetype: 'audio/mpeg' }, { quoted: msg })
+                            const res = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${encodeURIComponent(q)}`)
+                            await sock.sendMessage(from, { audio: { url: res.data.url }, mimetype: 'audio/mpeg' }, { quoted: msg })
                             react('✅')
                         } catch { reply('❌ Failed') }
                         break
@@ -456,8 +398,8 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         if (!q) return reply('YouTube URL?')
                         react('⏳')
                         try {
-                            const res = await axios.get(`${global.xwolf}/download/ytmp4?url=${encodeURIComponent(q)}`)
-                            await sock.sendMessage(from, { video: { url: res.data.result.download }, caption: res.data.result.title }, { quoted: msg })
+                            const res = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp4?url=${encodeURIComponent(q)}`)
+                            await sock.sendMessage(from, { video: { url: res.data.url }, caption: res.data.title }, { quoted: msg })
                             react('✅')
                         } catch { reply('❌ Failed') }
                         break
@@ -465,8 +407,8 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         if (!q) return reply('TikTok URL?')
                         react('⏳')
                         try {
-                            const res = await axios.get(`${global.xwolf}/api/download/tiktok?url=${encodeURIComponent(q)}`)
-                            await sock.sendMessage(from, { video: { url: res.data.result.video }, caption: res.data.result.title }, { quoted: msg })
+                            const res = await axios.get(`https://api.ryzendesu.vip/api/downloader/ttdl?url=${encodeURIComponent(q)}`)
+                            await sock.sendMessage(from, { video: { url: res.data.data.play }, caption: res.data.data.title }, { quoted: msg })
                             react('✅')
                         } catch { reply('❌ Failed') }
                         break
@@ -474,8 +416,8 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         if (!q) return reply('Instagram URL?')
                         react('⏳')
                         try {
-                            const res = await axios.get(`${global.xwolf}/api/download/instagram?url=${encodeURIComponent(q)}`)
-                            await sock.sendMessage(from, { video: { url: res.data.result[0].url }, caption: 'Instagram DL' }, { quoted: msg })
+                            const res = await axios.get(`https://api.ryzendesu.vip/api/downloader/igdl?url=${encodeURIComponent(q)}`)
+                            await sock.sendMessage(from, { video: { url: res.data.data[0].url }, caption: 'Instagram DL' }, { quoted: msg })
                             react('✅')
                         } catch { reply('❌ Failed') }
                         break
@@ -483,126 +425,37 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         if (!q) return reply('Facebook URL?')
                         react('⏳')
                         try {
-                            const res = await axios.get(`${global.xwolf}/api/download/facebook?url=${encodeURIComponent(q)}`)
-                            await sock.sendMessage(from, { video: { url: res.data.result.hd }, caption: 'Facebook DL' }, { quoted: msg })
+                            const res = await axios.get(`https://api.ryzendesu.vip/api/downloader/fbdl?url=${encodeURIComponent(q)}`)
+                            await sock.sendMessage(from, { video: { url: res.data.data[0].url }, caption: 'Facebook DL' }, { quoted: msg })
                             react('✅')
                         } catch { reply('❌ Failed') }
-                        break
-                    case 'lyrics':
-                        if (!q) return reply('Song name?')
-                        try {
-                            const res = await axios.get(`${global.xwolf}/download/lyrics?q=${encodeURIComponent(q)}`)
-                            reply(`*${res.data.result.title}*\n\n${res.data.result.lyrics}`)
-                        } catch { reply('❌ Lyrics not found') }
                         break
 
                     case 'imagine': case 'gen': case 'generate':
                         if (!q) return reply('Give me a prompt!')
                         react('🎨')
                         try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/image/pixabay?q=${encodeURIComponent(q)}&page=1`, { responseType: 'arraybuffer' })
-                            await sock.sendMessage(from, { image: Buffer.from(res.data), caption: `*Prompt:* ${q}` }, { quoted: msg })
+                            const res = await axios.get(`https://api.davidcyriltech.my.id/api/dalle?text=${encodeURIComponent(q)}`, {
+                                responseType: 'arraybuffer',
+                                timeout: 30000
+                            })
+                            await sock.sendMessage(from, {
+                                image: Buffer.from(res.data),
+                                caption: `*Prompt:* ${q}\n\n_Generated by DALL-E_`
+                            }, { quoted: msg })
                             react('✅')
-                        } catch { reply('❌ Image generation failed') }
-                        break
-                    case 'lorem': case 'randompic':
-                        react('🖼️')
-                        try {
-                            const width = args[0] || 800, height = args[1] || 600
-                            const res = await axios.get(`${global.xwolf}/api/ai/image/lorem-picsum?width=${width}&height=${height}`, { responseType: 'arraybuffer' })
-                            await sock.sendMessage(from, { image: Buffer.from(res.data), caption: `${width}x${height} Random Image` }, { quoted: msg })
-                            react('✅')
-                        } catch { reply('❌ Failed') }
-                        break
-                    case 'bingimg':
-                        react('🖼️')
-                        try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/image/bing`, { responseType: 'arraybuffer' })
-                            await sock.sendMessage(from, { image: Buffer.from(res.data), caption: 'Bing AI Image' }, { quoted: msg })
-                            react('✅')
-                        } catch { reply('❌ Failed') }
+                        } catch (e) {
+                            console.log('Imagine error:', e.message)
+                            reply('❌ Image generation failed. Try again.')
+                        }
                         break
 
-                    case 'summarize':
-                        if (!q) return reply('Text to summarize?')
-                        react('📝')
-                        try {
-                            const res = await axios.post(`${global.xwolf}/api/ai/summarize`, { text: q })
-                            reply(`*Summary:*\n\n${res.data.result}`)
-                            react('✅')
-                        } catch { reply('❌ Summarize failed') }
-                        break
-                    case 'codeai': case 'code':
-                        if (!q) return reply('Describe code to generate!')
-                        react('💻')
-                        try {
-                            const res = await axios.post(`${global.xwolf}/api/ai/code`, { prompt: q })
-                            reply(`\`\`\n${res.data.result}\n\`\`\``)
-                            react('✅')
-                        } catch { reply('❌ Code generation failed') }
-                        break
-                    case 'scanner': case 'ocr':
-                        if (!quoted?.imageMessage) return reply('Reply to an image!')
-                        react('🔍')
-                        try {
-                            const scanStream = await downloadContentFromMessage(quoted.imageMessage, 'image')
-                            let scanBuf = Buffer.from([])
-                            for await (const chunk of scanStream) scanBuf = Buffer.concat([scanBuf, chunk])
-                            const form = new FormData()
-                            form.append('image', scanBuf, 'scan.jpg')
-                            const res = await axios.post(`${global.xwolf}/api/ai/scanner`, form, { headers: form.getHeaders() })
-                            reply(`*Text Found:*\n\n${res.data.result}`)
-                            react('✅')
-                        } catch { reply('❌ Scan failed') }
-                        break
-                    case 'humanizer': case 'humanize':
-                        if (!q) return reply('Text to humanize?')
-                        react('✍️')
-                        try {
-                            const res = await axios.post(`${global.xwolf}/api/ai/humanizer`, { text: q })
-                            reply(`*Humanized:*\n\n${res.data.result}`)
-                            react('✅')
-                        } catch { reply('❌ Failed') }
-                        break
-                    case 'shazam':
-                        if (!quoted?.audioMessage) return reply('Reply to audio!')
-                        react('🎵')
-                        try {
-                            const audioStream = await downloadContentFromMessage(quoted.audioMessage, 'audio')
-                            let audioBuf = Buffer.from([])
-                            for await (const chunk of audioStream) audioBuf = Buffer.concat([audioBuf, chunk])
-                            const form = new FormData()
-                            form.append('audio', audioBuf, 'audio.mp3')
-                            const res = await axios.post(`${global.xwolf}/api/shazam/recognize`, form, { headers: form.getHeaders() })
-                            reply(`🎵 *Found:* ${res.data.result.title}\n👤 *Artist:* ${res.data.result.artist}`)
-                            react('✅')
-                        } catch { reply('❌ Not recognized') }
-                        break
-
-                    case 'openchat':
-                        if (!q) return reply('Ask something!')
-                        react('💬')
-                        try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/openchat?q=${encodeURIComponent(q)}`)
-                            reply(res.data.result)
-                            react('✅')
-                        } catch { reply('❌ OpenChat error') }
-                        break
-                    case 'wormgpt':
-                        if (!q) return reply('Ask something!')
-                        react('🐛')
-                        try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/wormgpt?q=${encodeURIComponent(q)}`)
-                            reply(`*WormGPT:*\n\n${res.data.result}`)
-                            react('✅')
-                        } catch { reply('❌ WormGPT error') }
-                        break
                     case 'gpt':
                         if (!q) return reply('Ask something!')
                         react('🤖')
                         try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/gpt?q=${encodeURIComponent(q)}`)
-                            reply(res.data.result)
+                            const res = await axios.get(`https://api.ryzendesu.vip/api/ai/chatgpt?q=${encodeURIComponent(q)}`)
+                            reply(res.data.response)
                             react('✅')
                         } catch { reply('❌ GPT error') }
                         break
@@ -610,49 +463,41 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         if (!q) return reply('Ask something!')
                         react('🧠')
                         try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/claude?q=${encodeURIComponent(q)}`)
-                            reply(`*Claude:*\n\n${res.data.result}`)
+                            const res = await axios.get(`https://api.ryzendesu.vip/api/ai/claude?q=${encodeURIComponent(q)}`)
+                            reply(`*Claude:*\n\n${res.data.response}`)
                             react('✅')
                         } catch { reply('❌ Claude error') }
-                        break
-                    case 'deepseek':
-                        if (!q) return reply('Ask something!')
-                        react('🔎')
-                        try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/deepseek?q=${encodeURIComponent(q)}`)
-                            reply(`*DeepSeek:*\n\n${res.data.result}`)
-                            react('✅')
-                        } catch { reply('❌ DeepSeek error') }
-                        break
-                    case 'groq':
-                        if (!q) return reply('Ask something!')
-                        react('⚡')
-                        try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/groq?q=${encodeURIComponent(q)}`)
-                            reply(`*Groq:*\n\n${res.data.result}`)
-                            react('✅')
-                        } catch { reply('❌ Groq error') }
                         break
                     case 'gemini':
                         if (!q) return reply('Ask something!')
                         react('💎')
                         try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/gemini?q=${encodeURIComponent(q)}`)
-                            reply(`*Gemini:*\n\n${res.data.result}`)
+                            const res = await axios.get(`https://api.ryzendesu.vip/api/ai/gemini?q=${encodeURIComponent(q)}`)
+                            reply(`*Gemini:*\n\n${res.data.response}`)
                             react('✅')
                         } catch { reply('❌ Gemini error') }
                         break
-                    case 'ai': case 'ask':
+                    case 'wormgpt': case 'evil': case 'uncen':
                         if (!q) return reply('Ask something!')
-                        react('🤖')
+                        react('🐛')
                         try {
-                            const res = await axios.get(`${global.xwolf}/api/ai/gpt?q=${encodeURIComponent(q)}`)
-                            reply(res.data.result)
-                            react('✅')
-                        } catch { reply('❌ AI error') }
+                            const res = await axios.get(`https://api.ryzendesu.vip/api/ai/uncen?q=${encodeURIComponent(q)}`, { timeout: 20000 })
+                            if (res.data.response) {
+                                reply(`*WormGPT:*\n\n${res.data.response}`)
+                                react('✅')
+                            } else throw new Error('Empty response')
+                        } catch {
+                            try {
+                                const res2 = await axios.get(`https://api.kenzap.com/v1/ai/luminai?text=${encodeURIComponent(q)}&uncensored=true`)
+                                reply(`*WormGPT:*\n\n${res2.data.result}`)
+                                react('✅')
+                            } catch {
+                                reply('❌ All uncensored APIs down. Use.gpt for normal questions.')
+                            }
+                        }
                         break
 
-                    case 'bass': case 'bassboost': case 'deep': case 'robot': case 'telephone': case 'underwater': case 'megaphone': case 'nightcore':
+                    case 'bass': case 'robot': case 'nightcore':
                         if (!quoted?.audioMessage &&!quoted?.videoMessage) return reply('Reply to audio/video!')
                         react('🎧')
                         try {
@@ -662,8 +507,7 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                             for await (const chunk of audioStream) audioBuf = Buffer.concat([audioBuf, chunk])
                             const form = new FormData()
                             form.append('audio', audioBuf, 'audio.mp3')
-                            const effect = command === 'bassboost'? 'bassboost' : command
-                            const res = await axios.post(`${global.xwolf}/api/audio/${effect}`, form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
+                            const res = await axios.post(`https://api.ryzendesu.vip/api/audio/${command}`, form, { headers: form.getHeaders(), responseType: 'arraybuffer' })
                             await sock.sendMessage(from, { audio: Buffer.from(res.data), mimetype: 'audio/mpeg' }, { quoted: msg })
                             react('✅')
                         } catch { reply('❌ Effect failed') }
@@ -674,7 +518,7 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         break
                     case 'daily':
                         const last = db.users[sender].lastDaily || 0
-                                                if (Date.now() - last < 86400000) return reply('❌ Already claimed! Come back tomorrow')
+                        if (Date.now() - last < 86400000) return reply('❌ Already claimed! Come back tomorrow')
                         db.users[sender].balance += 500
                         db.users[sender].lastDaily = Date.now()
                         saveDB()
@@ -714,18 +558,6 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                         }
                         saveDB()
                         break
-                    case 'shop':
-                        reply(`*🏪 SHOP*\n\n1. VIP Role - $5000\n2. Custom Name Color - $2000\n3. Bot Prefix Change - $10000\n\nUse: ${global.prefix}buy <item number>`)
-                        break
-                    case 'buy':
-                        const item = parseInt(q)
-                        const prices = { 1: 5000, 2: 2000, 3: 10000 }
-                        if (!prices[item]) return reply('Invalid item!')
-                        if (db.users[sender].balance < prices[item]) return reply('❌ Insufficient funds!')
-                        db.users[sender].balance -= prices[item]
-                        saveDB()
-                        reply(`✅ Purchased item ${item} for $${prices[item]}!\n💰 Balance: $${db.users[sender].balance}`)
-                        break
 
                     case 'google':
                         if (!q) return reply('Search query?')
@@ -738,36 +570,12 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                             reply(`*${res.data.title}*\n\n${res.data.extract}`)
                         } catch { reply('❌ Not found on Wikipedia') }
                         break
-                    case 'npm':
-                        if (!q) return reply('Package name?')
-                        try {
-                            const res = await axios.get(`${global.xwolf}/api/search/npm?q=${encodeURIComponent(q)}`)
-                            const pkg = res.data.result[0]
-                            reply(`📦 *${pkg.name}*\n${pkg.description}\n\n🔗 ${pkg.links.npm}`)
-                        } catch { reply('❌ Package not found') }
-                        break
-                    case 'github':
-                        if (!q) return reply('Repo name?')
-                        try {
-                            const res = await axios.get(`${global.xwolf}/api/search/github?q=${encodeURIComponent(q)}`)
-                            const repo = res.data.result[0]
-                            reply(`📁 *${repo.full_name}*\n⭐ Stars: ${repo.stars}\n🔗 ${repo.url}\n\n${repo.description}`)
-                        } catch { reply('❌ Repo not found') }
-                        break
                     case 'weather':
                         if (!q) return reply('City name?')
                         try {
                             const res = await axios.get(`https://wttr.in/${encodeURIComponent(q)}?format=3`)
                             reply(`🌤️ ${res.data}`)
                         } catch { reply('❌ Weather fetch failed') }
-                        break
-                    case 'movie':
-                        if (!q) return reply('Movie title?')
-                        try {
-                            const res = await axios.get(`${global.xwolf}/api/xcasper/search?q=${encodeURIComponent(q)}&type=movie&page=1&perPage=1`)
-                            const movie = res.data.result[0]
-                            reply(`🎬 *${movie.title}*\n📅 ${movie.year}\n⭐ ${movie.rating}\n\n${movie.description}\n\n🔗 ${movie.url}`)
-                        } catch { reply('❌ Movie not found') }
                         break
 
                     case 'ssweb': case 'screenshot':
@@ -784,15 +592,6 @@ const menu = `╭━━━〔 *${global.botname}* 〕━━━⬣
                             const result = eval(q.replace(/[^0-9+\-*/().]/g, ''))
                             reply(`🧮 ${q} = ${result}`)
                         } catch { reply('❌ Invalid expression') }
-                        break
-                    case 'translate': case 'tr':
-                        if (args.length < 2) return reply(`Usage: ${global.prefix}tr en Hello`)
-                        const lang = args[0]
-                        const text = args.slice(1).join(' ')
-                        try {
-                            const res = await axios.get(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=auto|${lang}`)
-                            reply(`*Translated (${lang}):*\n${res.data.responseData.translatedText}`)
-                        } catch { reply('❌ Translation failed') }
                         break
                     case 'tts': case 'speak':
                         if (!q) return reply('Text to speak?')
@@ -840,4 +639,3 @@ connectToWhatsApp()
 
 app.get('/', (req, res) => res.send('✅ Bot is connected!'))
 app.listen(port, () => console.log(`Server running on port ${port}`))
-                
