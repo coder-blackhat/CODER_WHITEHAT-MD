@@ -51,16 +51,11 @@ async function connectToWhatsApp() {
             auth: state,
             browser: ['CODER_WHITEHAT-MD', 'Chrome', '110.0.0'],
             version,
-            printQRInTerminal: true // <-- QR CODE ENABLED
+            printQRInTerminal: false
         })
 
         sock.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect, qr } = update
-
-            if (qr) {
-                console.log('📱 SCAN THIS QR CODE IN RAILWAY LOGS:')
-                console.log(qr)
-            }
+            const { connection, lastDisconnect } = update
 
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode
@@ -80,6 +75,21 @@ async function connectToWhatsApp() {
                 }
             } else if (connection === 'connecting') {
                 console.log('Connecting to WhatsApp...')
+            }
+
+            // AUTO PAIRING CODE FOR 263771405118
+            if (!sock.authState.creds.registered) {
+                setTimeout(async () => {
+                    try {
+                        const code = await sock.requestPairingCode(global.ownernumber)
+                        console.log(`\n\n=== PAIRING CODE ===`)
+                        console.log(`Number: ${global.ownernumber}`)
+                        console.log(`Code: ${code}`)
+                        console.log(`====================\n\n`)
+                    } catch (e) {
+                        console.log('Pairing code error:', e.message)
+                    }
+                }, 3000)
             }
         })
 
